@@ -1,56 +1,37 @@
-"use client";
-import { useState } from "react";
-
-export default function ChatPage() {
-  const [message, setMessage] = useState("");
-  const [reply, setReply] = useState("");
-
-  async function sendMessage() {
-    try {
-      setReply("Loading...");
-
-      const res = await fetch(
-        process.env.NEXT_PUBLIC_API_BASE + "/chat",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: message }),
-        }
-      );
-
-      const text = await res.text();
-
-      if (!res.ok) {
-        setReply(`Error ${res.status}: ${text}`);
-        return;
-      }
-
-      const data = JSON.parse(text);
-      setReply(data.reply || JSON.stringify(data));
-    } catch (e: any) {
-      setReply("Fetch failed: " + (e?.message || "unknown"));
-    }
-  }
-
+export default function Home() {
   return (
-    <div style={{ padding: 40 }}>
-      <h2>Chat Page 💬</h2>
+    <div className="row">
+      <div className="col">
+        <div className="card">
+          <h1 className="h1">منصة الطلاب الذكية 🎓</h1>
+          <p className="p">
+            سجل حسابك، فعّل كود التجربة، وبعدها افتح الشات.  
+            التجربة 7 أيام بكود من الأدمن.
+          </p>
 
-      <textarea
-        rows={5}
-        style={{ width: "100%" }}
-        placeholder="اكتب رسالتك هنا..."
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-      />
+          <div className="hr" />
 
-      <br /><br />
+          <div className="row">
+            <a className="btn" href="/register">ابدأ الآن</a>
+            <a className="btn secondary" href="/redeem">تفعيل كود</a>
+          </div>
 
-      <button onClick={sendMessage}>Send</button>
+          <div style={{ marginTop: 12 }} className="small">
+            Trial: جهاز واحد + IP واحد ✅ | Paid لاحقًا: جهازين + IPين ✅
+          </div>
+        </div>
+      </div>
 
-      <hr />
-
-      <pre>{reply}</pre>
+      <div className="col">
+        <div className="card">
+          <div className="badge">✨ Features</div>
+          <div className="hr" />
+          <div className="msg">✅ تسجيل دخول بحساب (Supabase Auth)</div>
+          <div className="msg">✅ تفعيل Trial Code لمدة 7 أيام</div>
+          <div className="msg">✅ حماية ضد التحايل (Cookies + Fingerprint + IP)</div>
+          <div className="msg">✅ Admin Dashboard لتوليد الأكواد</div>
+        </div>
+      </div>
     </div>
   );
 }
