@@ -5,43 +5,31 @@ export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [reply, setReply] = useState("");
 
- async function sendMessage() {
-  try {
-    setReply("Loading...");
+  async function sendMessage() {
+    try {
+      setReply("Loading...");
 
-    const res = await fetch(process.env.NEXT_PUBLIC_API_BASE + "/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: message }),
-    });
+      const res = await fetch(
+        process.env.NEXT_PUBLIC_API_BASE + "/chat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: message }),
+        }
+      );
 
-    const text = await res.text();
-    if (!res.ok) {
-      setReply(`Error ${res.status}: ${text}`);
-      return;
-    }
+      const text = await res.text();
 
-    const data = JSON.parse(text);
-    setReply(data.reply || JSON.stringify(data));
-  } catch (e: any) {
-    setReply("Fetch failed: " + (e?.message || "unknown"));
-  }
-}
-;
-
-    const res = await fetch(
-      process.env.NEXT_PUBLIC_API_BASE + "/chat",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ prompt: message })
+      if (!res.ok) {
+        setReply(`Error ${res.status}: ${text}`);
+        return;
       }
-    );
 
-    const data = await res.json();
-    setReply(data.reply || JSON.stringify(data));
+      const data = JSON.parse(text);
+      setReply(data.reply || JSON.stringify(data));
+    } catch (e: any) {
+      setReply("Fetch failed: " + (e?.message || "unknown"));
+    }
   }
 
   return (
@@ -58,9 +46,7 @@ export default function ChatPage() {
 
       <br /><br />
 
-      <button onClick={sendMessage}>
-        Send
-      </button>
+      <button onClick={sendMessage}>Send</button>
 
       <hr />
 
