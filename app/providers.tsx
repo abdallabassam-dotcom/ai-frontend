@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type Role = "student" | "admin";
@@ -49,14 +49,13 @@ const dict: Record<Lang, DictShape> = {
   },
 };
 
-
-
 type AppState = {
   lang: Lang;
-t: DictShape;
+  t: DictShape;
   setLang: (l: Lang) => void;
 
   userEmail: string | null;
+  username: string | null;
   role: Role | null;
   loadingAuth: boolean;
 
@@ -68,6 +67,7 @@ const Ctx = createContext<AppState | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ar");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -75,14 +75,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   function setLang(l: Lang) {
     setLangState(l);
-    localStorage.setItem("lang", l);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lang", l);
+    }
   }
 
   async function loadProfile(userId: string, email?: string | null) {
-    // حاول تجيب role
     const { data: prof } = await supabase
       .from("profiles")
-      .select("role,email")
+      .select("role,email,username")
       .eq("id", userId)
       .maybeSingle();
 
@@ -92,12 +93,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         id: userId,
         email: email || null,
         role: "student",
+        username: null,
       });
       setRole("student");
+      setUsername(null);
       return;
     }
 
     setRole((prof.role as Role) || "student");
+    setUsername((prof.username as string) || null);
 
     // sync email لو فاضي
     if (!prof.email && email) {
@@ -105,28 +109,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // تحميل اللغة + اتجاه الصفحة أول مرة
   useEffect(() => {
-    const saved = (typeof window !== "undefined" && localStorage.getItem("lang")) as Lang | null;
+    const saved =
+      (typeof window !== "undefined" ? (localStorage.getItem("lang") as Lang | null) : null);
+
+    const initialLang: Lang = saved === "en" ? "en" : "ar";
     if (saved === "ar" || saved === "en") setLangState(saved);
 
-    // ضبط اتجاه الصفحة حسب اللغة
-    const applyDir = (l: Lang) => {
-      document.documentElement.lang = l;
-      document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
-    };
-    applyDir(saved === "en" ? "en" : "ar");
+    document.documentElement.lang = initialLang;
+    document.documentElement.dir = initialLang === "ar" ? "rtl" : "ltr";
   }, []);
 
+  // تحديث الاتجاه مع تغيير اللغة
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [lang]);
 
+  // Session + Profile
   useEffect(() => {
     let mounted = true;
 
     async function init() {
       setLoadingAuth(true);
+
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
@@ -134,6 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (!session) {
         setUserEmail(null);
+        setUsername(null);
         setRole(null);
         setLoadingAuth(false);
         return;
@@ -151,6 +159,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (!session) {
         setUserEmail(null);
+        setUsername(null);
         setRole(null);
         setLoadingAuth(false);
         return;
@@ -177,11 +186,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       t,
       setLang,
       userEmail,
+      username,
       role,
       loadingAuth,
       logout,
     }),
-    [lang, userEmail, role, loadingAuth]
+    [lang, userEmail, username, role, loadingAuth]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
