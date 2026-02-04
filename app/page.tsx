@@ -1,19 +1,39 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useApp } from "./providers";
+
 export default function Home() {
+  const router = useRouter();
+  const { t, userEmail } = useApp();
+
+  const loggedIn = !!userEmail;
+
   return (
     <div className="row">
       <div className="col">
         <div className="card">
-          <h1 className="h1">منصة الطلاب الذكية 🎓</h1>
+          <h1 className="h1">{t.homeTitle} 🎓</h1>
           <p className="p">
-            سجل حسابك، فعّل كود التجربة، وبعدها افتح الشات.  
-            التجربة 7 أيام بكود من الأدمن.
+            {t.start} ثم فعّل كود التجربة. صفحة تفعيل الكود لا تظهر إلا بعد تسجيل الدخول.
           </p>
 
           <div className="hr" />
 
           <div className="row">
-            <a className="btn" href="/register">ابدأ الآن</a>
-            <a className="btn secondary" href="/redeem">تفعيل كود</a>
+            <button
+              className="btn"
+              onClick={() => router.push(loggedIn ? "/chat" : "/login")}
+            >
+              {t.start}
+            </button>
+
+            <button
+              className="btn secondary"
+              onClick={() => router.push(loggedIn ? "/redeem" : "/login")}
+            >
+              {t.redeem}
+            </button>
           </div>
 
           <div style={{ marginTop: 12 }} className="small">
@@ -26,10 +46,10 @@ export default function Home() {
         <div className="card">
           <div className="badge">✨ Features</div>
           <div className="hr" />
-          <div className="msg">✅ تسجيل دخول بحساب (Supabase Auth)</div>
-          <div className="msg">✅ تفعيل Trial Code لمدة 7 أيام</div>
-          <div className="msg">✅ حماية ضد التحايل (Cookies + Fingerprint + IP)</div>
-          <div className="msg">✅ Admin Dashboard لتوليد الأكواد</div>
+          <div className="msg">✅ Auth + Roles (student/admin)</div>
+          <div className="msg">✅ Trial Code Redeem (بعد تسجيل الدخول)</div>
+          <div className="msg">✅ Anti-fraud (Cookies + Fingerprint + IP)</div>
+          <div className="msg">✅ Admin يظهر فقط للـ admin</div>
         </div>
       </div>
     </div>
