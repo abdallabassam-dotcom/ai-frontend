@@ -12,9 +12,12 @@ async function getFingerprint(): Promise<string> {
   return r.visitorId;
 }
 
+type ChatMsg = { role: "user" | "assistant"; text: string };
+
 export default function ChatPage() {
   const [message, setMessage] = useState("");
-  const [reply, setReply] = useState("");
+  const [status, setStatus] = useState("");
+  const [chat, setChat] = useState<ChatMsg[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -24,14 +27,19 @@ export default function ChatPage() {
   }, [router]);
 
   async function sendMessage() {
-    try {
-      setReply("Loading...");
+    if (!message.trim()) return;
 
+    setChat((prev) => [...prev, { role: "user", text: message }]);
+    setStatus("Loading...");
+    const msgToSend = message;
+    setMessage("");
+
+    try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
 
       if (!token) {
-        setReply("لازم تعمل Login الأول");
+        setStatus("لازم تعمل Login الأول");
         router.push("/login");
         return;
       }
@@ -47,45 +55,74 @@ export default function ChatPage() {
           "x-device-fingerprint": fingerprint,
         },
         credentials: "include",
-        body: JSON.stringify({ prompt: message }),
+        body: JSON.stringify({ prompt: msgToSend }),
       });
 
       const text = await res.text();
 
       if (!res.ok) {
-        setReply(`Error ${res.status}: ${text}`);
+        setStatus("");
+        setChat((prev) => [
+          ...prev,
+          { role: "assistant", text: `Error ${res.status}: ${text}` },
+        ]);
         return;
       }
 
-      const dataJson = JSON.parse(text);
-      setReply(dataJson.reply || text);
+      const json = JSON.parse(text);
+      setStatus("");
+      setChat((prev) => [
+        ...prev,
+        { role: "assistant", text: json.reply || text },
+      ]);
     } catch (e: any) {
-      setReply("Error: " + (e?.message || "unknown"));
+      setStatus("");
+      setChat((prev) => [
+        ...prev,
+        { role: "assistant", text: "Error: " + (e?.message || "unknown") },
+      ]);
     }
   }
 
   return (
-    <div style={{ padding: 40 }}>
-      <h2>Chat Page 💬</h2>
+    <div className="card">
+      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <h2 style={{ margin: 0 }}>Chat 💬</h2>
+        <span className="badge">Trial / Paid Access</span>
+      </div>
+
+      <div className="hr" />
+
+      <div style={{ minHeight: 220 }}>
+        {chat.length === 0 ? (
+          <div className="msg">اكتب رسالة وجرب…</div>
+        ) : (
+          chat.map((m, i) => (
+            <div
+              key={i}
+              className={"msg " + (m.role === "assistant" ? "good" : "")}
+              style={{ textAlign: m.role === "user" ? "right" : "left" }}
+            >
+              <b>{m.role === "user" ? "أنت" : "النظام"}:</b> {m.text}
+            </div>
+          ))
+        )}
+        {status && <div className="msg">{status}</div>}
+      </div>
+
+      <div className="hr" />
 
       <textarea
-        rows={5}
-        style={{ width: "100%" }}
+        className="textarea"
+        placeholder="اكتب رسالتك هنا..."
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="اكتب رسالتك هنا..."
       />
 
-      <br />
-      <br />
-
-      <button onClick={sendMessage}>Send</button>
-
-      <hr />
-
-      <pre>{reply}</pre>
+      <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+        <button className="btn" onClick={sendMessage}>Send</button>
+        <a className="btn secondary" href="/redeem">تفعيل كود</a>
+      </div>
     </div>
   );
 }
-
-
