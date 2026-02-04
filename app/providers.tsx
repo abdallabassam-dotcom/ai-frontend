@@ -6,7 +6,21 @@ import { supabase } from "@/lib/supabaseClient";
 type Role = "student" | "admin";
 type Lang = "ar" | "en";
 
-const dict = {
+type DictShape = {
+  homeTitle: string;
+  start: string;
+  redeem: string;
+  login: string;
+  register: string;
+  chat: string;
+  admin: string;
+  signedOut: string;
+  signedIn: string;
+  role: string;
+  logout: string;
+};
+
+const dict: Record<Lang, DictShape> = {
   ar: {
     homeTitle: "منصة الطلاب الذكية",
     start: "ابدأ الآن",
@@ -33,8 +47,8 @@ const dict = {
     role: "Role",
     logout: "Logout",
   },
-} as const;
-type DictShape = typeof dict.ar;
+};
+
 
 
 type AppState = {
