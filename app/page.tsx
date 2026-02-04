@@ -5,7 +5,7 @@ export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [reply, setReply] = useState("");
 
-  async function sendMessage() {
+ async function sendMessage() {
   try {
     setReply("Loading...");
 
@@ -15,7 +15,7 @@ export default function ChatPage() {
       body: JSON.stringify({ prompt: message }),
     });
 
-    const text = await res.text(); // عشان لو رجع HTML error
+    const text = await res.text();
     if (!res.ok) {
       setReply(`Error ${res.status}: ${text}`);
       return;
