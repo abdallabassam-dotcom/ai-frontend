@@ -34,10 +34,12 @@ const dict = {
     logout: "Logout",
   },
 } as const;
+type DictShape = typeof dict.ar;
+
 
 type AppState = {
   lang: Lang;
-  t: typeof dict.ar;
+t: DictShape;
   setLang: (l: Lang) => void;
 
   userEmail: string | null;
