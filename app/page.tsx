@@ -6,7 +6,28 @@ export default function ChatPage() {
   const [reply, setReply] = useState("");
 
   async function sendMessage() {
+  try {
     setReply("Loading...");
+
+    const res = await fetch(process.env.NEXT_PUBLIC_API_BASE + "/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: message }),
+    });
+
+    const text = await res.text(); // عشان لو رجع HTML error
+    if (!res.ok) {
+      setReply(`Error ${res.status}: ${text}`);
+      return;
+    }
+
+    const data = JSON.parse(text);
+    setReply(data.reply || JSON.stringify(data));
+  } catch (e: any) {
+    setReply("Fetch failed: " + (e?.message || "unknown"));
+  }
+}
+;
 
     const res = await fetch(
       process.env.NEXT_PUBLIC_API_BASE + "/chat",
