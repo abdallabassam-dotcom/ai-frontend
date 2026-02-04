@@ -1,0 +1,71 @@
+:root{
+  --bg:#0b1220;
+  --card:#0f1a30;
+  --text:#e7eefc;
+  --muted:#9bb0d0;
+  --border:rgba(255,255,255,.12);
+  --btn:#2d6cff;
+  --btn2:#1d2a44;
+  --good:#25c26e;
+  --bad:#ff4d4d;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background: radial-gradient(1200px 800px at 10% 10%, #16264a 0%, var(--bg) 60%);
+  color:var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
+}
+
+a{color:inherit;text-decoration:none}
+.container{max-width:980px;margin:0 auto;padding:24px}
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.col{flex:1;min-width:260px}
+.h1{font-size:36px;margin:0 0 10px}
+.p{color:var(--muted);line-height:1.6;margin:0}
+.input, .textarea{
+  width:100%;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 12px;
+  outline:none;
+}
+.textarea{min-height:120px;resize:vertical}
+.btn{
+  background: var(--btn);
+  border: 0;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn.secondary{background: rgba(255,255,255,.08); border:1px solid var(--border)}
+.badge{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--muted);font-size:13px}
+.hr{height:1px;background:var(--border);margin:14px 0}
+.msg{
+  padding:10px 12px;border-radius:14px;border:1px solid var(--border);
+  background: rgba(255,255,255,.05); margin:10px 0; white-space:pre-wrap;
+}
+.msg.good{border-color: rgba(37,194,110,.35)}
+.msg.bad{border-color: rgba(255,77,77,.35)}
+.nav{
+  position:sticky;top:0;backdrop-filter: blur(10px);
+  background: rgba(11,18,32,.6);
+  border-bottom:1px solid var(--border);
+}
+.navinner{max-width:980px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.navlinks{display:flex;gap:12px;flex-wrap:wrap}
+.logo{font-weight:900;letter-spacing:.4px}
+.small{font-size:13px;color:var(--muted)}
