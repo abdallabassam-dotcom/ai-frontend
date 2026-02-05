@@ -1,11 +1,9 @@
 "use client";
 
 import { useApp } from "./providers";
-import { useRouter } from "next/navigation";
 
 export default function TopNav() {
-  const { t, lang, setLang, userEmail, role, loadingAuth, logout } = useApp();
-  const router = useRouter();
+  const { t, lang, setLang, userEmail, username, role, loadingAuth, logout } = useApp();
 
   const loggedIn = !!userEmail;
 
@@ -25,7 +23,6 @@ export default function TopNav() {
 
           {role === "admin" && <a className="badge" href="/admin">{t.admin}</a>}
 
-          {/* Language toggle */}
           <button
             className="badge"
             style={{ cursor: "pointer" }}
@@ -34,9 +31,12 @@ export default function TopNav() {
             {lang === "ar" ? "EN" : "AR"}
           </button>
 
-          {/* Status pill */}
           <span className="badge">
-            {loadingAuth ? "..." : loggedIn ? `${t.signedIn}: ${userEmail}` : t.signedOut}
+            {loadingAuth
+              ? "..."
+              : loggedIn
+              ? `${t.signedIn}: ${username || userEmail}`
+              : t.signedOut}
             {loggedIn && role && ` | ${t.role}: ${role}`}
           </span>
 
@@ -44,10 +44,7 @@ export default function TopNav() {
             <button
               className="badge"
               style={{ cursor: "pointer" }}
-              onClick={async () => {
-                await logout();
-                router.push("/");
-              }}
+              onClick={logout}   // ✅ بدون router.push
             >
               {t.logout}
             </button>
