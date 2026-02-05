@@ -82,17 +82,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const bootedRef = useRef(false);
   const idleTimerRef = useRef<number | null>(null);
-  const loggingOutRef = useRef(false);
+  const isLoggingOutRef = useRef(false);
 
   const t = dict[lang];
 
   function setLang(l: Lang) {
     setLangState(l);
-    if (typeof window !== "undefined") localStorage.setItem("lang", l);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lang", l);
+    }
   }
 
   async function ensureProfile(userId: string, email?: string | null) {
-    // نقرأ profile
     const { data: prof, error } = await supabase
       .from("profiles")
       .select("role,email,username")
@@ -100,14 +101,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .maybeSingle();
 
     if (error) {
-      // لو فشل profiles لأي سبب، ما نوقفش الدنيا
       setRole("student");
       setUsername(null);
       return;
     }
 
     if (!prof) {
-      // Profile مش موجود => ننشئه student (ده أول مرة فقط)
       await supabase.from("profiles").insert({
         id: userId,
         email: email || null,
@@ -119,17 +118,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // موجود => ما نعملش overwrite للـ role
     setRole(((prof.role as Role) || "student") as Role);
     setUsername((prof.username as string) || null);
 
-    // sync email لو فاضي فقط
     if (!prof.email && email) {
       await supabase.from("profiles").update({ email }).eq("id", userId);
     }
   }
 
-  // ===== Language + dir =====
+  // ===== lang/dir on first load =====
   useEffect(() => {
     const saved =
       typeof window !== "undefined"
@@ -157,21 +154,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   function armIdleTimer() {
     clearIdleTimer();
-    // لو مش مسجل دخول، مفيش تايمر
     if (!userEmail) return;
 
     idleTimerRef.current = window.setTimeout(() => {
-      // لو المستخدم سايب الموقع 10 دقايق => logout
-      logout();
+      logout(); // logout after idle
     }, IDLE_MS);
   }
 
   useEffect(() => {
-    // أي activity يعيد التايمر
     const events = ["mousemove", "keydown", "scroll", "click", "touchstart"];
     const onActivity = () => armIdleTimer();
 
-    // لما يكون logged in شغّل التتبع
     if (userEmail) {
       armIdleTimer();
       events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
@@ -226,34 +219,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // ===== Logout (stable) =====
+  // ===== FORCE LOGOUT (works even if signOut hangs) =====
   async function logout() {
-    if (loggingOutRef.current) return;
-    loggingOutRef.current = true;
+    if (isLoggingOutRef.current) return;
+    isLoggingOutRef.current = true;
 
+    // 1) Clear UI immediately
+    clearIdleTimer();
+    setUserEmail(null);
+    setUsername(null);
+    setRole(null);
+    setLoadingAuth(false);
+
+    // 2) Try signOut but don't block
+    const timeout = new Promise((resolve) => setTimeout(resolve, 1000));
     try {
-      clearIdleTimer();
-
-      // Local أفضل/أثبت لمشاكل الكوكيز/الـ SSR
-      await supabase.auth.signOut({ scope: "local" });
+      await Promise.race([supabase.auth.signOut({ scope: "local" }), timeout]);
     } catch {
       // ignore
-    } finally {
-      setUserEmail(null);
-      setUsername(null);
-      setRole(null);
-      setLoadingAuth(false);
+    }
 
-      // امسح مفاتيح الادمن لو بتخزنها (سيب lang)
-      if (typeof window !== "undefined") {
-        // لو عندك adminKey مخزنه هنا
-        // localStorage.removeItem("admin_key");
+    // 3) Remove Supabase auth token keys from localStorage
+    if (typeof window !== "undefined") {
+      try {
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith("sb-") && k.endsWith("-auth-token")) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch {
+        // ignore
       }
 
-      // ريديركت قوي يضمن إن كل حاجة اتصفرت
-      if (typeof window !== "undefined") window.location.assign("/login");
-      loggingOutRef.current = false;
+      // 4) Hard redirect
+      window.location.replace("/login");
     }
+
+    isLoggingOutRef.current = false;
   }
 
   const value = useMemo(
