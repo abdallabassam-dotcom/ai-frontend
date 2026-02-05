@@ -1,25 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
+  const [adminKey, setAdminKey] = useState("");
   const [days, setDays] = useState(7);
   const [expiresInDays, setExpiresInDays] = useState(30);
   const [result, setResult] = useState("");
   const [codes, setCodes] = useState<string[]>([]);
 
+  useEffect(() => {
+    const saved = sessionStorage.getItem("admin_key");
+    if (saved) setAdminKey(saved);
+  }, []);
+
   async function generate() {
     setResult("Generating...");
 
+    // خزّنها session فقط (اختياري)
+    sessionStorage.setItem("admin_key", adminKey);
+
     const res = await fetch("/api/admin/generate-trial-code", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": adminKey,
+      },
       body: JSON.stringify({
-        password,
         days,
-        expires_in_days: expiresInDays
-      })
+        expires_in_days: expiresInDays,
+      }),
     });
 
     const text = await res.text();
@@ -48,14 +58,14 @@ export default function AdminPage() {
       <div style={{ marginBottom: 12 }}>
         <input
           type="password"
-          placeholder="Admin dashboard password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ width: 280 }}
+          placeholder="Admin key"
+          value={adminKey}
+          onChange={(e) => setAdminKey(e.target.value)}
+          style={{ width: 320 }}
         />
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center" }}>
         <label>
           Days:
           <input
@@ -76,10 +86,12 @@ export default function AdminPage() {
           />
         </label>
 
-        <button onClick={generate}>Generate Code</button>
+        <button onClick={generate} disabled={!adminKey}>
+          Generate Code
+        </button>
       </div>
 
-      <pre style={{ background: "#f5f5f5", padding: 12 }}>{result}</pre>
+      <pre style={{ background: "#f5f5f5", padding: 12, whiteSpace: "pre-wrap" }}>{result}</pre>
 
       <h3>Last codes</h3>
       {codes.length === 0 ? (
