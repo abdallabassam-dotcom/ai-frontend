@@ -7,10 +7,13 @@ export const metadata = {
   description: "Student access platform",
 };
 
+// مهم عشان مايحصلش caching غريب مع auth
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
-      <body>
+    <html suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <AppProvider>
           <TopNav />
           <div className="container">{children}</div>
