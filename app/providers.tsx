@@ -64,6 +64,13 @@ type AppState = {
 
 const Ctx = createContext<AppState | null>(null);
 
+// =======================
+// Idle timeout settings
+// =======================
+const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const LAST_ACTIVITY_KEY = "last_activity_ts";
+const nowTs = () => Date.now();
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ar");
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -112,7 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // تحميل اللغة + اتجاه الصفحة أول مرة
   useEffect(() => {
     const saved =
-      (typeof window !== "undefined" ? (localStorage.getItem("lang") as Lang | null) : null);
+      typeof window !== "undefined" ? (localStorage.getItem("lang") as Lang | null) : null;
 
     const initialLang: Lang = saved === "en" ? "en" : "ar";
     if (saved === "ar" || saved === "en") setLangState(saved);
@@ -126,6 +133,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [lang]);
+
+  // Logout helper (يمسح state + يودّي /login)
+  async function hardLogout() {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setUserEmail(null);
+      setUsername(null);
+      setRole(null);
+      setLoadingAuth(false);
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+  }
 
   // Session + Profile
   useEffect(() => {
@@ -176,8 +199,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // =======================
+  // Idle timeout (10 min)
+  // =======================
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let timer: any = null;
+
+    const resetTimer = () => {
+      // ما نعملش تايمر لو مش عامل login اصلا
+      // (هتشتغل برضو لو عايزها حتى وهو guest، بس ده أنسب)
+      if (!userEmail) return;
+
+      const ts = nowTs();
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(ts));
+
+      if (timer) clearTimeout(timer);
+
+      timer = setTimeout(() => {
+        hardLogout();
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    // لو رجع للموقع بعد وقت طويل
+    const last = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || "0");
+    if (userEmail && last && nowTs() - last > IDLE_TIMEOUT_MS) {
+      hardLogout();
+      return;
+    }
+
+    // أول ما يبقى logged in نبدأ
+    resetTimer();
+
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    const onActivity = () => resetTimer();
+
+    events.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true }));
+
+    const onVisibility = () => {
+      if (!document.hidden) resetTimer();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // مزامنة بين التابات
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === LAST_ACTIVITY_KEY && userEmail) resetTimer();
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      events.forEach((ev) => window.removeEventListener(ev, onActivity as any));
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [userEmail]); // مهم: يتفعل لما يعمل login
+
   async function logout() {
+    // زرار logout بتاعك
     await supabase.auth.signOut();
+    setUserEmail(null);
+    setUsername(null);
+    setRole(null);
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   }
 
   const value = useMemo(
