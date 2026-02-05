@@ -5,7 +5,6 @@ import { useApp } from "./providers";
 
 export default function TopNav() {
   const { t, lang, setLang, userEmail, username, role, loadingAuth, logout } = useApp();
-
   const loggedIn = !!userEmail;
 
   return (
@@ -14,37 +13,15 @@ export default function TopNav() {
         <div className="logo">🚀 {t.homeTitle}</div>
 
         <div className="navlinks">
-          <Link className="badge" href="/">
-            {t.start}
-          </Link>
+          <Link className="badge" href="/">{t.start}</Link>
 
-          {loggedIn && (
-            <>
-              <Link className="badge" href="/chat">
-                {t.chat}
-              </Link>
-              <Link className="badge" href="/redeem">
-                {t.redeem}
-              </Link>
-            </>
-          )}
+          {loggedIn && <Link className="badge" href="/chat">{t.chat}</Link>}
+          {loggedIn && <Link className="badge" href="/redeem">{t.redeem}</Link>}
 
-          {!loggedIn && (
-            <>
-              <Link className="badge" href="/login">
-                {t.login}
-              </Link>
-              <Link className="badge" href="/register">
-                {t.register}
-              </Link>
-            </>
-          )}
+          {!loggedIn && <Link className="badge" href="/login">{t.login}</Link>}
+          {!loggedIn && <Link className="badge" href="/register">{t.register}</Link>}
 
-          {role === "admin" && (
-            <Link className="badge" href="/admin">
-              {t.admin}
-            </Link>
-          )}
+          {role === "admin" && <Link className="badge" href="/admin">{t.admin}</Link>}
 
           <button
             type="button"
@@ -68,7 +45,7 @@ export default function TopNav() {
             <button
               type="button"
               className="badge"
-              onClick={logout}   // ✅ هنا بس
+              onClick={() => logout()}  /* ✅ بدون await */
               style={{ cursor: "pointer" }}
             >
               {t.logout}
