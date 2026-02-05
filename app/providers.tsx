@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type Role = "student" | "admin";
@@ -64,6 +71,8 @@ type AppState = {
 
 const Ctx = createContext<AppState | null>(null);
 
+const IDLE_MS = 10 * 60 * 1000; // 10 minutes
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ar");
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -72,6 +81,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   const bootedRef = useRef(false);
+  const idleTimerRef = useRef<number | null>(null);
+  const loggingOutRef = useRef(false);
+
   const t = dict[lang];
 
   function setLang(l: Lang) {
@@ -79,7 +91,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") localStorage.setItem("lang", l);
   }
 
-  async function loadProfile(userId: string, email?: string | null) {
+  async function ensureProfile(userId: string, email?: string | null) {
+    // نقرأ profile
     const { data: prof, error } = await supabase
       .from("profiles")
       .select("role,email,username")
@@ -87,14 +100,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .maybeSingle();
 
     if (error) {
-      // ما نعلقش بسبب خطأ profiles
+      // لو فشل profiles لأي سبب، ما نوقفش الدنيا
       setRole("student");
       setUsername(null);
       return;
     }
 
     if (!prof) {
-      // إنشاء profile جديد — مهم: ما نلمسش admin إلا لو انت مديه يدويًا
+      // Profile مش موجود => ننشئه student (ده أول مرة فقط)
       await supabase.from("profiles").insert({
         id: userId,
         email: email || null,
@@ -106,30 +119,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // موجود => ما نعملش overwrite للـ role
     setRole(((prof.role as Role) || "student") as Role);
     setUsername((prof.username as string) || null);
 
+    // sync email لو فاضي فقط
     if (!prof.email && email) {
       await supabase.from("profiles").update({ email }).eq("id", userId);
     }
   }
 
-  // أول مرة: language + dir
+  // ===== Language + dir =====
   useEffect(() => {
-    const saved = (typeof window !== "undefined" ? (localStorage.getItem("lang") as Lang | null) : null);
+    const saved =
+      typeof window !== "undefined"
+        ? (localStorage.getItem("lang") as Lang | null)
+        : null;
+
     const initialLang: Lang = saved === "en" ? "en" : "ar";
     setLangState(initialLang);
     document.documentElement.lang = initialLang;
     document.documentElement.dir = initialLang === "ar" ? "rtl" : "ltr";
   }, []);
 
-  // تحديث الاتجاه مع تغيير اللغة
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [lang]);
 
-  // Session + Profile
+  // ===== Idle timer =====
+  function clearIdleTimer() {
+    if (idleTimerRef.current) {
+      window.clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  }
+
+  function armIdleTimer() {
+    clearIdleTimer();
+    // لو مش مسجل دخول، مفيش تايمر
+    if (!userEmail) return;
+
+    idleTimerRef.current = window.setTimeout(() => {
+      // لو المستخدم سايب الموقع 10 دقايق => logout
+      logout();
+    }, IDLE_MS);
+  }
+
+  useEffect(() => {
+    // أي activity يعيد التايمر
+    const events = ["mousemove", "keydown", "scroll", "click", "touchstart"];
+    const onActivity = () => armIdleTimer();
+
+    // لما يكون logged in شغّل التتبع
+    if (userEmail) {
+      armIdleTimer();
+      events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    }
+
+    return () => {
+      clearIdleTimer();
+      events.forEach((e) => window.removeEventListener(e, onActivity as any));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userEmail]);
+
+  // ===== Auth session =====
   useEffect(() => {
     let mounted = true;
 
@@ -145,12 +200,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       setUserEmail(session.user.email || null);
-      await loadProfile(session.user.id, session.user.email);
+      await ensureProfile(session.user.id, session.user.email);
       setLoadingAuth(false);
     }
 
     async function init() {
-      // منع init مرتين في Next dev
       if (bootedRef.current) return;
       bootedRef.current = true;
 
@@ -172,28 +226,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // ===== Logout (stable) =====
   async function logout() {
+    if (loggingOutRef.current) return;
+    loggingOutRef.current = true;
+
     try {
-      // global أفضل عشان ينهي الجلسة تمامًا
-      await supabase.auth.signOut({ scope: "global" });
+      clearIdleTimer();
+
+      // Local أفضل/أثبت لمشاكل الكوكيز/الـ SSR
+      await supabase.auth.signOut({ scope: "local" });
     } catch {
-      // حتى لو فشل… هنكمل
+      // ignore
     } finally {
       setUserEmail(null);
       setUsername(null);
       setRole(null);
       setLoadingAuth(false);
 
-      // مهم: امسح أي مفاتيح انت مستخدمها للمشروع (غير lang)
-      // لو انت مخزن adminKey في localStorage خليه باسم واضح زي: admin_key
+      // امسح مفاتيح الادمن لو بتخزنها (سيب lang)
       if (typeof window !== "undefined") {
-        // مثال:
+        // لو عندك adminKey مخزنه هنا
         // localStorage.removeItem("admin_key");
-        // متحذفش "lang"
       }
 
-      // Hard redirect يضمن إن كل حاجة اتصفرت
+      // ريديركت قوي يضمن إن كل حاجة اتصفرت
       if (typeof window !== "undefined") window.location.assign("/login");
+      loggingOutRef.current = false;
     }
   }
 
